@@ -6,6 +6,7 @@ pub enum Token {
     Eof,
 
     // Keywords
+    Dis,
     Let,
     Func,
     If,
@@ -19,17 +20,23 @@ pub enum Token {
     // Idents & Literals
     Ident(String),
     Int(i64),
+    Bool(bool),
+
+
+    // types
+    IntType,
+    BoolType,
 
     // Operators
     Assign,
     Plus,
     Minus,
-    Bang,
-    GreaterThan,
-    LessThan,
     And,
     Equal,
     NotEqual,
+    Bang,
+    GreaterThan,
+    LessThan,
 
     // Delimeters
     Comma,
@@ -47,13 +54,15 @@ pub struct Lexer {
     bytes: Vec<u8>,
     position: usize,
     read_position: usize,
-    ch: u8
+    ch: u8,
+    ended: bool, 
 }
 
 impl Lexer {
     fn read_char(&mut self) {
         if self.read_position >= self.input.len() {
             self.ch = 0;
+            self.ended = true;
         }else{
             self.ch = self.bytes[self.read_position];
         }
@@ -77,7 +86,7 @@ impl Lexer {
         return false;
     }
 
-    fn next_token(&mut self) -> Token {
+    pub fn next_token(&mut self) -> Token {
         self.skip_whitespace();
         let tok = match self.ch {
             b'=' => {
@@ -119,6 +128,7 @@ impl Lexer {
                 let iden = self.read_identifier();
                 return match iden.as_str() {
                     // Keywords
+                    "dis" => Token::Dis,
                     "func" => Token::Func,
                     "let" => Token::Let,
                     "if" => Token::If,
@@ -128,6 +138,8 @@ impl Lexer {
                     "false" => Token::False,
                     "return" => Token::Return,
                     "run" => Token::Run,
+                    "int" => Token::IntType,
+                    "bool" => Token::BoolType,
                     _ => Token::Ident(iden)
                 };
             },
@@ -135,7 +147,12 @@ impl Lexer {
                 let int = self.read_number();
                 return Token::Int(int)
             }
-            _ => Token::Illegal
+            _ => {
+                if self.ended {
+                    return Token::Eof;
+                }
+                Token::Illegal
+            }
         };
         self.read_char();
         return tok
@@ -162,7 +179,6 @@ impl Lexer {
         let pos = self.position;
         while is_digit(self.ch) {
             self.read_char();
-            println!("{}", self.ch as char);
         }
         return (&self.input[pos..self.position]).to_string().parse::<i64>().unwrap();
     }
@@ -190,7 +206,8 @@ pub fn new_lexer(str: impl Into<String>) -> Lexer {
         input: inp,
         position: 0,
         read_position: 0,
-        ch: 0
+        ch: 0,
+        ended: false,
     };
     lex.read_char();
     lex
